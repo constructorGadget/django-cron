@@ -32,11 +32,12 @@ def get_current_time():
 
 
 class Schedule(object):
-    def __init__(self, run_every_mins=None, run_at_times=None, retry_after_failure_mins=None):
+    def __init__(self, run_every_mins=None, run_at_times=None, run_weekly=None, retry_after_failure_mins=None):
         if run_at_times is None:
             run_at_times = []
         self.run_every_mins = run_every_mins
         self.run_at_times = run_at_times
+        self.run_weekly = run_weekly
         self.retry_after_failure_mins = retry_after_failure_mins
 
 
@@ -129,8 +130,16 @@ class CronJobManager(object):
             else:
                 return True
 
-        if cron_job.schedule.run_at_times:
-            for time_data in cron_job.schedule.run_at_times:
+        run_times = list(cron_job.schedule.run_at_times)
+
+        if cron_job.schedule.run_weekly:
+            user_time = time.strptime(cron_job.schedule.run_weekly, "%a %H:%M")
+            now = get_current_time()
+            if now.weekday() == user_time.weekday():
+                run_times.append(time.strftime("%H:%M", user_time))
+
+        if run_times:
+            for time_data in run_times:
                 user_time = time.strptime(time_data, "%H:%M")
                 now = get_current_time()
                 actual_time = time.strptime("%s:%s" % (now.hour, now.minute), "%H:%M")
@@ -146,7 +155,12 @@ class CronJobManager(object):
                         self.user_time = time_data
                         return True
 
+
+
         return False
+
+
+
 
     def make_log(self, *messages, **kwargs):
         cron_log = self.cron_log
